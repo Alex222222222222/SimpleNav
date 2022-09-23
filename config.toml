@@ -1,0 +1,6 @@
+BUILDER = "Alex222222222222"
+WebURL = "https://nav.huazifan.eu.org"
+SITE_NAME = "SimpleNav"
+DESCRIPTION = "Simple navigator page build by Alex222222222222"
+WELCOME_MESSAGE = "Weclcome to simple navigation!"
+COPY_RIGHT_INFORMATION = "Copyright © 2022 SimpleNav"
