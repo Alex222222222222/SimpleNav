@@ -1,0 +1,17 @@
+<!--
+RequiredVariable:TERM_ID,ICON_NAME,TERM_NAME,SIDEBAR_SUBITEM
+-->
+<!--
+DESCRIPTION: sidebar item with subitems
+-->
+<li class="sidebar-item">
+      <a href="javascript:;" class="smooth change-href"
+            data-change="#{{TERM_ID}}">
+            <i class="{{ICON_NAME}}"></i>
+            <span>{{TERM_NAME}}</span>
+            <i class="iconfont icon-arrow-r-m sidebar-more text-sm"></i>
+      </a>
+      <ul>
+            {{SIDEBAR_SUBITEM}}
+      </ul>
+</li>

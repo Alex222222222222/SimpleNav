@@ -1,6 +1,9 @@
 <!--
 RequiredVariable:BUILDER,WebURL,SITE_NAME,DESCRIPTION,WELCOME_MESSAGE,COPY_RIGHT_INFORMATION,MAIN_CONTENT,SIDEBAR_MENU
 -->
+<!--
+DESCRIPTION: index.html
+-->
 <!DOCTYPE html>
 <html lang="zh-CN">
 
@@ -9,7 +12,7 @@ RequiredVariable:BUILDER,WebURL,SITE_NAME,DESCRIPTION,WELCOME_MESSAGE,COPY_RIGHT
       <meta http-equiv="X-UA-Compatible" content="IE=edge, chrome=1" />
       <meta name="viewport"
             content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-      <title>{{SITE_NAME}} | {{DESCRIPTION}}</title>
+      <title> {{SITE_NAME}} | {{DESCRIPTION}} </title>
       <meta name="theme-color" content="#f9f9f9" />
       <meta name="keywords" content="navigation" />
       <meta name="description" content="{{DESCRIPTION}}" />
@@ -54,11 +57,11 @@ RequiredVariable:BUILDER,WebURL,SITE_NAME,DESCRIPTION,WELCOME_MESSAGE,COPY_RIGHT
                               <div class="logo overflow-hidden">
                                     <a href="{{WebURL}}" class="logo-expanded">
                                           <img src="/static/img/iconLarge.png"
-                                                height="40" class="logo-light" alt="学生必备工具导航" />
+                                                height="40" class="logo-light" alt="{{SITE_NAME}}" />
                                     </a>
                                     <a href="{{WebURL}}" class="logo-collapsed">
                                           <img src="/static/img/icon.png"
-                                                height="40" class="logo-light" alt="学生必备工具导航" />
+                                                height="40" class="logo-light" alt="{{SITE_NAME}}" />
                                     </a>
                               </div>
                               <!-- logo end -->
