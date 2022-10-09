@@ -253,3 +253,18 @@ func Render(page string, hidden bool, path string) (err error) {
 		return nil
 	}
 }
+
+func RenderAll() (err error) {
+
+	err = InitWebDir()
+	if err != nil {
+		return err
+	}
+
+	err = Render("Index", true, "./web/index.html")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
