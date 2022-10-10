@@ -81,6 +81,50 @@ func LoadConfig() (err error) {
 
 func main() {
 
+	// TODO database management flags
+	// TODO init database here
+	if len(opts.AddCategory) > 0 && len(opts.AddCategory[0]) > 0 {
+
+		// init database
+		err := DBInit()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if len(opts.SetName) == 0 {
+			log.Fatal(errors.New("Add new category required a name"))
+		}
+		name := opts.SetName[0]
+		d := ""
+		if len(opts.SetDescription) != 0 {
+			d = opts.SetDescription[0]
+		}
+		hidden := false
+		if len(opts.SetHidden) != 0 {
+			hidden = opts.SetHidden[0]
+		}
+		p := 0
+		if len(opts.SetPriority) != 0 {
+			p = opts.SetPriority[0]
+		}
+
+		err = AddCategory(name, opts.SetFatherCategory, d, hidden, p)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	}
+
+	if len(opts.AddLinks) > 0 && len(opts.AddLinks[0]) > 0 {
+
+		// init database
+		err := DBInit()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	}
+
 	// renderAll flag
 	if len(opts.RenderAll) > 0 && opts.RenderAll[0] {
 		err := InitAll()
@@ -118,9 +162,6 @@ func main() {
 
 	}
 
-	// TODO database management flags
-	// TODO init database here
-
 	// Server flag
 	if len(opts.Server) > 0 && opts.Server[0] {
 		err := Server()
@@ -128,4 +169,5 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+
 }

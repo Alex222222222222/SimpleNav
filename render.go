@@ -163,13 +163,13 @@ func renderSideBarSingleItem(c *Category, hidden bool) (res []byte, err error) {
 func renderSideBar(hidden bool) (res []byte, err error) {
 	for i := 0; i < len(Categories); i += 1 {
 		c := AllCategories[Categories[i]]
-		if len(c.SubCategory) > 0 && c.FatherCategory >= 0 {
+		if len(c.SubCategory) > 0 && len(c.FatherCategory) > 0 {
 			html, err := renderSideBarWithSubitem(c, hidden)
 			if err != nil {
 				return make([]byte, 0), err
 			}
 			res = append(res, html...)
-		} else if c.FatherCategory >= 0 {
+		} else if len(c.FatherCategory) > 0 {
 			html, err := renderSideBarSingleItem(c, hidden)
 			if err != nil {
 				return make([]byte, 0), err
@@ -183,6 +183,7 @@ func renderSideBar(hidden bool) (res []byte, err error) {
 
 // TODO function to render main content
 func renderIndexCategory(hidden bool) (res []byte, err error) {
+	// while render links without a a front img, automatically return the broken img picture here
 	return nil, nil
 }
 
