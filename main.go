@@ -91,10 +91,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		if len(opts.SetName) == 0 {
-			log.Fatal(errors.New("Add new category required a name"))
-		}
-		name := opts.SetName[0]
+		name := opts.AddCategory[0]
 		d := ""
 		if len(opts.SetDescription) != 0 {
 			d = opts.SetDescription[0]
@@ -119,6 +116,29 @@ func main() {
 
 		// init database
 		err := DBInit()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if len(opts.SetName) == 0 {
+			log.Fatal(errors.New("Add new link required a name"))
+		}
+		name := opts.SetName[0]
+		url := opts.AddLinks[0]
+		d := ""
+		if len(opts.SetDescription) != 0 {
+			d = opts.SetDescription[0]
+		}
+		p := 0
+		if len(opts.SetPriority) != 0 {
+			p = opts.SetPriority[0]
+		}
+		img := ""
+		if len(opts.SetImg) != 0 {
+			img = opts.SetImg[0]
+		}
+
+		err = AddLink(name, url, d, img, opts.SetFatherCategory, p, opts.SetTags)
 		if err != nil {
 			log.Fatal(err)
 		}
