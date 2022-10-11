@@ -61,6 +61,11 @@ func InitAll() (err error) {
 		return err
 	}
 
+	err = LoadData()
+	if err != nil {
+		return nil
+	}
+
 	return nil
 }
 
@@ -81,8 +86,6 @@ func LoadConfig() (err error) {
 
 func main() {
 
-	// TODO database management flags
-	// TODO init database here
 	if len(opts.AddCategory) > 0 && len(opts.AddCategory[0]) > 0 {
 
 		// init database
@@ -144,6 +147,10 @@ func main() {
 		}
 
 	}
+
+	// TODO database management flags
+	// TODO init database here
+	// TODO delete category and links will be put here
 
 	// renderAll flag
 	if len(opts.RenderAll) > 0 && opts.RenderAll[0] {

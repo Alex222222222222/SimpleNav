@@ -3,6 +3,9 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"strconv"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -205,11 +208,6 @@ func DBInit() (err error) {
 		return err
 	}
 
-	err = LoadData()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -221,7 +219,83 @@ func DBInit() (err error) {
 // sb means sub category
 // it contain a list of id of links
 // d means description
-func AddCategory(name string, fc []string, d string, hidden bool, priority int) (err error)
+func AddCategory(name string, fc []string, d string, hidden bool, priority int) (err error) {
+
+	var id int
+
+	err = db.QueryRow("SELECT ID FROM Category ORDER BY ID DESC").Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		id = 1
+	} else if err != nil {
+		return err
+	}
+
+	id += 1
+	fcl := make([]int64, 0, len(fc))
+	var fci int64
+	for i := 0; i < len(fc); i += 1 {
+		fct := strings.Split(fc[i], ":")
+		for j := 0; j < len(fct); j += 1 {
+			if len(fct[j]) > 0 {
+				fci, err = strconv.ParseInt(fct[j], 10, 64)
+				fcl = append(fcl, fci)
+			}
+		}
+	}
+
+	fcs, err := json.Marshal(fcl)
+
+	_, err = db.Exec(
+		`INSERT INTO CATEGORY (ID, Name, FatherCategory,Description, Hidden, Priority)
+		VALUES (?, ?, ?, ?, ?, ?)`,
+		id,
+		name,
+		fcs,
+		d,
+		hidden,
+		priority,
+	)
+	if err != nil {
+		return err
+	}
+
+	var sb []int64
+	var sbs []byte
+	var idj int64
+	for i := 0; i < len(fcl); i += 1 {
+
+		idj = fcl[i]
+		err = db.QueryRow("SELECT SubCategory FROM Category WHERE ID = ?", idj).Scan(&sbs)
+		if errors.Is(err, sql.ErrNoRows) {
+
+		} else if err != nil {
+			return err
+		}
+
+		if len(sbs) == 0 {
+			sb = make([]int64, 0, 1)
+		} else {
+			err = json.Unmarshal(sbs, &sb)
+			if err != nil {
+				return err
+			}
+		}
+
+		sb = append(sb, int64(id))
+		sbs, err = json.Marshal(sb)
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec("UPDATE Category SET SubCategory = ? WHERE ID = ?", sbs, idj)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return nil
+}
 
 // TODO add links
 // insert a new link to database and copy the img file to static/img/front/id.png
@@ -230,10 +304,14 @@ func AddCategory(name string, fc []string, d string, hidden bool, priority int) 
 //
 // d means description
 // img represent the given path of the img, if the img does not exist or the target path is not a img, then return a error
-func AddLink(name string, url string, d string, img string, fc []string, priority int, tags []string) (err error)
+func AddLink(name string, url string, d string, img string, fc []string, priority int, tags []string) (err error) {
+	return nil
+}
 
-// TODO
+// TODO FetchLinkInformation
 // fetch the target html and detect informations including names from the target html
 // if imgRequired is true this will download the front img of the website and save it to the static/img/front/id.png
 // id is used to store the img file, if the target file exist, this will replace it
-func FetchLinkInformation(url string, id int, imgRequired bool) (l *Link, err error)
+func FetchLinkInformation(url string, id int, imgRequired bool) (l *Link, err error) {
+	return nil, nil
+}
