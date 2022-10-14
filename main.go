@@ -123,10 +123,10 @@ func main() {
 			log.Fatal(err)
 		}
 
-		if len(opts.SetName) == 0 {
-			log.Fatal(errors.New("Add new link required a name"))
+		name := ""
+		if len(opts.SetName) > 0 {
+			name = opts.SetName[0]
 		}
-		name := opts.SetName[0]
 		url := opts.AddLinks[0]
 		d := ""
 		if len(opts.SetDescription) != 0 {

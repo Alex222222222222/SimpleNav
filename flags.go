@@ -12,6 +12,7 @@ var opts struct {
 	Server      []bool   `short:"s" long:"server" description:"server the web dir"`
 	AddLinks    []string `short:"l" long:"addLinks" description:"add new links, use single url or specify other things using --name --description --img --fatherCategory --priority --tags flags"`
 	AddCategory []string `short:"c" long:"addCategory" description:"add new categories, use single url or specify other things using --name --description --fatherCategory --priority --hidden flags"`
+	// TODO "add tags command"
 
 	SetName           []string `long:"name" description:"set name for category or links"`
 	SetDescription    []string `long:"des" description:"set description for category or links"`

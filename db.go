@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -28,14 +30,14 @@ CREATE TABLE IF NOT EXISTS Links (
 );
 */
 type Link struct {
-	ID             int      // the unique id of a single link
-	Name           string   // the name of the link
-	URL            string   // the url
-	Description    string   // description set by user or fetch by the client
-	IMG            string   // link image provided by path
-	FatherCategory []int    // category
-	Priority       int      // priority used in the ordering of links
-	Tags           []string // tags of the links
+	ID             int    // the unique id of a single link
+	Name           string // the name of the link
+	URL            string // the url
+	Description    string // description set by user or fetch by the client
+	IMG            string // link image provided by path
+	FatherCategory []int  // category
+	Priority       int    // priority used in the ordering of links
+	Tags           []int  // tags of the links
 }
 
 /*
@@ -184,7 +186,7 @@ func LoadData() (err error) {
 			return err
 		}
 
-		var tags []string
+		var tags []int
 		err = json.Unmarshal(tagss, &tags)
 		if err != nil {
 			return err
@@ -308,7 +310,25 @@ func AddCategory(name string, fc []string, d string, hidden bool, priority int) 
 		}
 	}
 
+	// test if all its father category exist
+	var idj int64
+	var sbs []byte
+	fcN := make([]int64, 0, len(fcl))
+	for i := 0; i < len(fcl); i += 1 {
+		idj = fcl[i]
+		err = db.QueryRow("SELECT SubCategory FROM Category WHERE ID = ?", idj).Scan(&sbs)
+		if errors.Is(err, sql.ErrNoRows) {
+		} else if err != nil {
+			return err
+		} else {
+			fcN = append(fcN, fcl[i])
+		}
+	}
+	fcl = fcN
 	fcs, err := json.Marshal(fcl)
+	if err != nil {
+		return err
+	}
 
 	_, err = db.Exec(
 		`INSERT INTO CATEGORY (ID, Name, FatherCategory,Description, Hidden, Priority)
@@ -325,38 +345,30 @@ func AddCategory(name string, fc []string, d string, hidden bool, priority int) 
 	}
 
 	var sb []int64
-	var sbs []byte
-	var idj int64
 	for i := 0; i < len(fcl); i += 1 {
 
 		idj = fcl[i]
 		err = db.QueryRow("SELECT SubCategory FROM Category WHERE ID = ?", idj).Scan(&sbs)
-		if errors.Is(err, sql.ErrNoRows) {
-
-		} else if err != nil {
+		if err != nil {
 			return err
+		} else if len(sbs) == 0 {
+			sb = make([]int64, 0, 1)
 		} else {
-
-			if len(sbs) == 0 {
-				sb = make([]int64, 0, 1)
-			} else {
-				err = json.Unmarshal(sbs, &sb)
-				if err != nil {
-					return err
-				}
-			}
-
-			sb = append(sb, int64(id))
-			sbs, err = json.Marshal(sb)
+			err = json.Unmarshal(sbs, &sb)
 			if err != nil {
 				return err
 			}
+		}
 
-			_, err = db.Exec("UPDATE Category SET SubCategory = ? WHERE ID = ?", sbs, idj)
-			if err != nil {
-				return err
-			}
+		sb = append(sb, int64(id))
+		sbs, err = json.Marshal(sb)
+		if err != nil {
+			return err
+		}
 
+		_, err = db.Exec("UPDATE Category SET SubCategory = ? WHERE ID = ?", sbs, idj)
+		if err != nil {
+			return err
 		}
 
 	}
@@ -400,7 +412,6 @@ func AddLink(name string, url string, d string, img string, fc []string, priorit
 	if len(fcl) == 0 {
 		return errors.New("at least on father category must be provided for a link")
 	}
-	fcs, err := json.Marshal(fcl)
 
 	// parse the tags
 	tl := make([]int64, 0, len(tags))
@@ -415,23 +426,30 @@ func AddLink(name string, url string, d string, img string, fc []string, priorit
 			}
 		}
 	}
-	ts, err := json.Marshal(tl)
 
 	// fetch and fill the missing information
-	ir := false
-	if img == "" {
-		ir = true
+	// TODO add command line flag to decided wither to auto fetch tags
+	l, err := FetchLinkInformation(url, id, img == "", name == "", d == "", len(tags) == 0)
+	if err != nil {
+		return err
 	}
-	l, err := FetchLinkInformation(url, id, ir)
+	ir := img == ""
+	if img == "" {
+		img = l.IMG
+	}
 	if name == "" {
 		name = l.Name
 	}
 	if d == "" {
 		d = l.Description
 	}
-	if ir {
-		img = l.IMG
+	if len(tl) == 0 {
+		for i := 0; i < len(l.Tags); i += 1 {
+			tl = append(tl, int64(l.Tags[i]))
+		}
 	}
+	// TODO insert the links to the existing tag
+	ts, err := json.Marshal(tl)
 
 	// copy the img file
 	if !ir {
@@ -459,9 +477,32 @@ func AddLink(name string, url string, d string, img string, fc []string, priorit
 		img = "./static/img/front/" + fmt.Sprint(id) + "." + tail
 	}
 
+	// test if all its father category exist
+	var idj int64
+	var ls []byte
+	fcN := make([]int64, 0, len(fcl))
+	for i := 0; i < len(fcl); i += 1 {
+		idj = fcl[i]
+		err = db.QueryRow("SELECT Links FROM Category WHERE ID = ?", idj).Scan(&ls)
+		if errors.Is(err, sql.ErrNoRows) {
+		} else if err != nil {
+			return err
+		} else {
+			fcN = append(fcN, fcl[i])
+		}
+	}
+	fcl = fcN
+	if len(fcl) == 0 {
+		return errors.New("Add new category require at least 1 existing father category")
+	}
+	fcs, err := json.Marshal(fcl)
+	if err != nil {
+		return err
+	}
+
 	// insert the data to db
 	_, err = db.Exec(
-		`INSERT INTO CATEGORY (ID, Name, URL, Description,IMG ,FatherCategory, Priority, Tags)
+		`INSERT INTO Links (ID, Name, URL, Description,IMG ,FatherCategory, Priority, Tags)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		id,
 		name,
@@ -478,38 +519,32 @@ func AddLink(name string, url string, d string, img string, fc []string, priorit
 
 	// update the father category
 	var link []int64
-	var ls []byte
-	var idj int64
 	for i := 0; i < len(fcl); i += 1 {
 
 		idj = fcl[i]
 		err = db.QueryRow("SELECT Links FROM Category WHERE ID = ?", idj).Scan(&ls)
-		if errors.Is(err, sql.ErrNoRows) {
-
-		} else if err != nil {
+		if err != nil {
 			return err
+		}
+
+		if len(ls) == 0 {
+			link = make([]int64, 0, 1)
 		} else {
-
-			if len(ls) == 0 {
-				link = make([]int64, 0, 1)
-			} else {
-				err = json.Unmarshal(ls, &link)
-				if err != nil {
-					return err
-				}
-			}
-
-			link = append(link, int64(id))
-			ls, err = json.Marshal(link)
+			err = json.Unmarshal(ls, &link)
 			if err != nil {
 				return err
 			}
+		}
 
-			_, err = db.Exec("UPDATE Category SET Links = ? WHERE ID = ?", ls, idj)
-			if err != nil {
-				return err
-			}
+		link = append(link, int64(id))
+		ls, err = json.Marshal(link)
+		if err != nil {
+			return err
+		}
 
+		_, err = db.Exec("UPDATE Category SET Links = ? WHERE ID = ?", ls, idj)
+		if err != nil {
+			return err
 		}
 
 	}
@@ -521,9 +556,208 @@ func AddLink(name string, url string, d string, img string, fc []string, priorit
 // fetch the target html and detect informations including names from the target html
 // if imgRequired is true this will download the front img of the website and save it to the static/img/front/id.png
 // id is used to store the img file, if the target file exist, this will replace it
-func FetchLinkInformation(url string, id int, imgRequired bool) (l *Link, err error) {
-	return nil, nil
+func FetchLinkInformation(url string, id int, imgRequired bool, titleRequired bool, descriptionRequired bool, tagRequired bool) (l *Link, err error) {
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, errors.New("HTTP request failed: " + resp.Status)
+	}
+
+	html, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// get title
+	title := ""
+	if titleRequired {
+		reTitle := regexp.MustCompile("<title>([^<]*)</title>")
+		reTitleRes := reTitle.FindSubmatch(html)
+		if reTitle == nil || len(reTitleRes) < 2 {
+			return nil, errors.New("Failed to find the page title automatically, please specify title by command line")
+		}
+		title = string(reTitleRes[1])
+	}
+
+	// get all meta and link tag
+	var metaLinkRes [][]byte
+	var hrefContentMatch *regexp.Regexp
+	if descriptionRequired || imgRequired || tagRequired {
+		//metaLinkMatch := regexp.MustCompile("<(?:meta|link)[\\s]*([\\s]*(?:[^=\"'\\s]+=(?:(?:\"[^\"]*\")|(?:'[^']*')))[\\s]*)*>")
+		metaLinkMatch := regexp.MustCompile("<(?:meta|link)[\\s]*(?:[\\s]*[^=\\s\"']+[\\s]*=[\\s]*(?:(?:\"[^\"]*\")|(?:'[^']*'))[\\s]*)*[/]{0,1}[\\s]*>")
+		metaLinkRes = metaLinkMatch.FindAll(html, -1)
+		hrefContentMatch = regexp.MustCompile("(?:href|content)[\\s]*=[\\s]*(?:(?:\"([^\"]*)\")|(?:'([^']*)'))")
+	}
+
+	// get description
+	d := make([]byte, 0, 200)
+	if descriptionRequired {
+		nameDescription := regexp.MustCompile("name[\\s]*=[\\s]*(?:\"|')description(?:\"|')")
+		for i := 0; i < len(metaLinkRes); i += 1 {
+			if nameDescription.Match(metaLinkRes[i]) {
+				contentRes := hrefContentMatch.FindSubmatch(metaLinkRes[i])
+				if contentRes != nil && len(contentRes) >= 2 {
+					if len(d) != 0 {
+						d = append(d, []byte("\n\n")...)
+					}
+					d = append(d, contentRes[1]...)
+				}
+			}
+		}
+	}
+
+	// get icon href
+	img := ""
+	if imgRequired {
+		imgURL := ""
+		linkIcon := regexp.MustCompile("rel[\\s]*=[\\s]*(?:\"|')(?:icon|shortcut icon)(?:\"|')")
+		for i := 0; i < len(metaLinkRes); i += 1 {
+			if linkIcon.Match(metaLinkRes[i]) {
+				contentRes := hrefContentMatch.FindSubmatch(metaLinkRes[i])
+				if contentRes != nil && len(contentRes) >= 2 {
+					imgURL = string(contentRes[1])
+					i = len(metaLinkRes)
+				}
+			}
+		}
+		// icon may be have short links <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		if imgURL != "" {
+			protocolMatch := regexp.MustCompile("(?:https|http|webdav|ftp|smb)://")
+			if !protocolMatch.MatchString(imgURL) {
+				webRootMatch := regexp.MustCompile("(?:https|http|webdav|ftp|smb)://[^/\\s]+")
+				webRoot := webRootMatch.FindString(url)
+				if webRoot == "" {
+					return nil, errors.New("Failed to find web root of url " + url)
+				}
+				imgURL = webRoot + imgURL
+			}
+		}
+		if imgURL == "" {
+			img = "./static/img/404.png"
+		} else {
+
+			// http get img url and save to disk
+			imgResp, err := http.Get(imgURL)
+			if err != nil {
+				return nil, err
+			}
+			if imgResp.StatusCode != 200 {
+				return nil, errors.New("HTTP request for img failed: " + resp.Status)
+			}
+
+			tails := strings.Split(imgURL, "/")
+			tail := ""
+			for i := len(tails) - 1; i >= 0; i -= 1 {
+				if tails[i] != "" {
+					tail = tails[i]
+					i = -1
+				}
+			}
+			tails = strings.Split(tail, ".")
+
+			exist, err := FileExist("./static/img/front/")
+			if err != nil {
+				return nil, err
+			}
+			if !exist {
+				err = os.Mkdir("./static/img/front/", os.ModeDir)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			imgF, err := os.Create("./static/img/front/" + fmt.Sprint(id) + "." + tail)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = io.Copy(imgF, imgResp.Body)
+			if err != nil {
+				return nil, err
+			}
+
+			img = "./static/img/front/" + fmt.Sprint(id) + "." + tail
+
+			err = imgResp.Body.Close()
+			if err != nil {
+				return nil, err
+			}
+			err = imgF.Close()
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
+	}
+
+	// get keywords
+	var tags []int
+	if tagRequired {
+		nameKeywords := regexp.MustCompile("name[\\s]*=[\\s]*(?:\"|')keywords(?:\"|')")
+		var tagss []string
+		for i := 0; i < len(metaLinkRes); i += 1 {
+			if nameKeywords.Match(metaLinkRes[i]) {
+				contentRes := hrefContentMatch.FindSubmatch(metaLinkRes[i])
+				if contentRes != nil && len(contentRes) >= 2 {
+					separator := []string{",", "，", ";", ":", "；", "：", "/"}
+					tagss = make([]string, 1)
+					tagss[0] = string(contentRes[1])
+					for j := 0; j < len(separator); j += 1 {
+						tempTags := make([]string, 0, len(tagss))
+						for k := 0; k < len(tagss); k += 1 {
+							tempTags = append(tempTags, strings.Split(tagss[k], separator[j])...)
+						}
+						tagss = tempTags
+					}
+				}
+			}
+		}
+
+		// TODO get id of tagss
+		for i := 0; i < len(tagss); i += 1 {
+			var idt int
+			err = db.QueryRow("SELECT ID FROM Tags WHERE Name = ?", tagss[i]).Scan(&idt)
+			if errors.Is(err, sql.ErrNoRows) {
+			} else if err != nil {
+				return nil, err
+			} else {
+				tags = append(tags, idt)
+			}
+
+		}
+	}
+
+	return &Link{
+		ID:          id,
+		Name:        title,
+		URL:         url,
+		Description: string(d),
+		IMG:         img,
+		Tags:        tags,
+	}, nil
+
 }
+
+// TODO add a tag
+func AddTag() {}
+
+// TODO get tagID by name
+func GetTagIDByName(name string) (id int, err error) {
+	return 0, nil
+}
+
+// TODO update category and links
+// TODO delete category and links
+// TODO get information of a link and category
 
 // Copy the src file to dst. Any existing file will be overwritten and will not
 // copy file attributes.
